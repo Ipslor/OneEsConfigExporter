@@ -17,8 +17,8 @@ using System.Reflection;
 using System.Threading;
 using Timer=System.Windows.Forms.Timer;
 
-[assembly: AssemblyVersion("2.5.1.0")]
-[assembly: AssemblyFileVersion("2.5.1.0")]
+[assembly: AssemblyVersion("2.5.2.0")]
+[assembly: AssemblyFileVersion("2.5.2.0")]
 
 namespace OneCConfigExporter {
 internal static class Program {
@@ -61,7 +61,7 @@ internal sealed class MainForm : Form {
  string[] githubRepositoryCache=new string[0];int dateVersion;bool headless;int lastBatchFailures;Button scenarioButton=new Button{Text="Сохранить как сценарий",AutoSize=true};
 
  public MainForm() {
-  Text="Выгрузка конфигурации 1С v.2.5.1"; Font=new Font("Segoe UI",9); MinimumSize=new Size(900,680); Size=new Size(1060,780); StartPosition=FormStartPosition.CenterScreen;
+  Text="Выгрузка конфигурации 1С v.2.5.2"; Font=new Font("Segoe UI",9); MinimumSize=new Size(900,680); Size=new Size(1060,780); StartPosition=FormStartPosition.CenterScreen;
   var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(14),ColumnCount=1,RowCount=8};
   root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.Percent,100)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); Controls.Add(root);
   root.RowStyles.Clear();root.RowCount=3;root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -251,7 +251,7 @@ internal sealed class MainForm : Form {
    using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token))
    using(var client=new HttpClient(new HttpClientHandler{AllowAutoRedirect=false}){Timeout=TimeSpan.FromSeconds(10)}){
     deadline.CancelAfter(TimeSpan.FromSeconds(10));
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.1");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.2");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
     {
      var info=new JavaScriptSerializer().DeserializeObject(await GithubResponse(client,"https://api.github.com/user",deadline.Token)) as Dictionary<string,object>;
      if(info==null||!info.ContainsKey("login")||!String.Equals(Convert.ToString(info["login"]),user,StringComparison.OrdinalIgnoreCase))throw new Exception("Токен принадлежит другому пользователю GitHub.");
@@ -287,7 +287,7 @@ internal sealed class MainForm : Form {
   ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
   using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token))
   using(var client=new HttpClient(new HttpClientHandler{AllowAutoRedirect=false}){Timeout=TimeSpan.FromSeconds(15)}){
-   deadline.CancelAfter(TimeSpan.FromSeconds(60));client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.1");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+   deadline.CancelAfter(TimeSpan.FromSeconds(60));client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.2");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
    var names=new List<string>();for(int page=1;page<=100;page++){
     deadline.Token.ThrowIfCancellationRequested();if(IsDisposed||version!=connectionVersion)throw new OperationCanceledException("Параметры подключения изменились.");
     var rows=new JavaScriptSerializer().DeserializeObject(await GithubResponse(client,"https://api.github.com/user/repos?per_page=100&page="+page,deadline.Token)) as object[];
@@ -366,7 +366,7 @@ internal sealed class MainForm : Form {
  static async Task<Tuple<int,string>> GitDiagnosticCommand(string exe,string args){
   if(String.IsNullOrWhiteSpace(exe))return Tuple.Create(-2,"Git.exe не найден. Укажите путь к установленному Git.");
   try{using(var p=new Process{StartInfo=new ProcessStartInfo{FileName=exe,Arguments=args,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8}}){
-   ExecutionSafety.CleanGitEnvironment(p.StartInfo);p.Start();var stdout=Task.Run(()=>RuntimeSafety.ReadPipe(p.StandardOutput));var stderr=Task.Run(()=>RuntimeSafety.ReadPipe(p.StandardError));var exit=Task.Run(()=>p.WaitForExit());
+   ExecutionSafety.CleanGitEnvironment(p.StartInfo);p.StartInfo.EnvironmentVariables["GIT_NO_REPLACE_OBJECTS"]="1";p.Start();var stdout=Task.Run(()=>RuntimeSafety.ReadPipe(p.StandardOutput));var stderr=Task.Run(()=>RuntimeSafety.ReadPipe(p.StandardError));var exit=Task.Run(()=>p.WaitForExit());
    if(await Task.WhenAny(exit,Task.Delay(5000)).ConfigureAwait(false)!=exit){RuntimeSafety.KillTree(p);Observe(exit);Observe(stdout);Observe(stderr);return Tuple.Create(-1,"Git не ответил за 5 секунд.");}
    await exit.ConfigureAwait(false);var pipes=Task.WhenAll(stdout,stderr);if(await Task.WhenAny(pipes,Task.Delay(2000)).ConfigureAwait(false)!=pipes){Observe(pipes);return Tuple.Create(-1,"Дочерний процесс Git не закрыл потоки.");}
    string standard=await stdout.ConfigureAwait(false),errors=await stderr.ConfigureAwait(false);return Tuple.Create(p.ExitCode,(p.ExitCode==0?standard:standard+errors).Trim());
@@ -376,6 +376,9 @@ internal sealed class MainForm : Form {
  async Task<string> GitPreflight(){
   var directory=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" rev-parse --absolute-git-dir");if(directory.Item1!=0)return directory.Item2;
   foreach(string name in new[]{"MERGE_HEAD","CHERRY_PICK_HEAD","REVERT_HEAD","rebase-merge","rebase-apply","index.lock"}){string path=Path.Combine(directory.Item2,name);if(File.Exists(path)||Directory.Exists(path))return "Git занят или находится в незавершённой операции ("+name+"). Завершите её вручную.";}
+  if(await Task.Run(()=>File.Exists(Path.Combine(directory.Item2,"info","grafts"))))return "В Git есть info/grafts. Сначала согласуйте такую историю вручную; выгрузка не запускалась.";
+  var replaced=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" for-each-ref --format=%(refname) refs/replace/");if(replaced.Item1!=0)return replaced.Item2;if(!String.IsNullOrWhiteSpace(replaced.Item2))return "В Git есть refs/replace. Сначала согласуйте такую историю вручную; выгрузка не запускалась.";
+  var indexFlags=await RunGitSyncAsync("ls-files -v -- . "+GitExclusions(),false);if(indexFlags.Item1!=0)return Redact(indexFlags.Item2);if(GitLocalFirstSync.HiddenIndexRows(indexFlags.Item2))return "В индексе Git есть assume-unchanged/skip-worktree. Git может пропустить изменения выгрузки. Снимите эти флаги вручную перед запуском.";
   var conflicts=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" diff --name-only --diff-filter=U");if(conflicts.Item1!=0)return conflicts.Item2;if(!String.IsNullOrWhiteSpace(conflicts.Item2))return "В репозитории есть неразрешённые конфликты.";
   var staged=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" diff --cached --name-only -- . "+GitExclusions());if(staged.Item1!=0)return staged.Item2;if(!String.IsNullOrWhiteSpace(staged.Item2))return "В каталоге уже есть подготовленные к коммиту изменения. Сохраните или уберите их из индекса вручную перед выгрузкой.";
   return null;
@@ -399,7 +402,7 @@ internal sealed class MainForm : Form {
   if(first){resourcesReleased=true;connectionVersion++;dateVersion++;monitorVersion++;lifetimeCancellation.Cancel();if(batchCancellation!=null)batchCancellation.Cancel();if(exportWatcher!=null)exportWatcher.Dispose();indicatorsTip.Dispose();if(logTimer!=null)logTimer.Dispose();
    fonts=new[]{Font,platformIndicator.Font,gitIndicator.Font,githubIndicator.Font,run.Font,preview.Font,logBox.Font};
    foreach(Control c in new Control[]{bases,platform,fileMode,serverMode,fullMode,incrementalMode,filePath,server,database,output,dbUser,dbPassword,repoUser,repoPassword,commitGit,gitPath,commitMessage,pushGit,githubUser,githubToken,githubRepo,ignoreLargeFiles,maxFileMegabytes})c.Dispose();
-  }base.Dispose(disposing);if(first){foreach(Font font in fonts.Distinct())font.Dispose();lifetimeCancellation.Dispose();}
+  }base.Dispose(disposing);if(first){var released=new List<Font>();foreach(Font font in fonts)if(!released.Any(item=>Object.ReferenceEquals(item,font))){released.Add(font);font.Dispose();}lifetimeCancellation.Dispose();}
  }
  async Task SafeUiAction(Func<Task> action){try{await action();}catch(OperationCanceledException){if(!IsDisposed)status.Text="Операция отменена.";}catch(Exception ex){if(IsDisposed)return;RecordEvent("Ошибка интерфейса: "+ex.Message);MessageBox.Show(this,Redact(ex.Message),"Операция не выполнена",MessageBoxButtons.OK,MessageBoxIcon.Error);}}
 
@@ -463,6 +466,7 @@ internal sealed class MainForm : Form {
   if(pushGit.Checked&&!commitGit.Checked)return "Для отправки на GitHub включите создание коммита.";
   if(String.IsNullOrWhiteSpace(commitMessage.Text))return "Не задано сообщение коммита.";
   Stage(1,"Проверка изменений Git…");
+  var indexFlags=await RunGitSyncAsync("ls-files -v -- . "+GitExclusions(),false);if(indexFlags.Item1!=0)return Redact(indexFlags.Item2);if(GitLocalFirstSync.HiddenIndexRows(indexFlags.Item2))return "Файлы выгружены, но в индексе Git есть assume-unchanged/skip-worktree. Снимите эти флаги и повторите обработку: Git может пропустить изменённые файлы.";
   var check=await RunGitAsync("status --porcelain -- . "+GitExclusions());if(check.Item1!=0)return check.Item2;
   if(String.IsNullOrWhiteSpace(check.Item2)){CompletedOperation("Новых изменений нет — коммит не создавался");Stage(2,"Новых изменений для Git нет");return pushGit.Checked?await PushToGithub():null;}
   Stage(1,"Создание Git-коммита…");
@@ -473,10 +477,10 @@ internal sealed class MainForm : Form {
  async Task<string> PushToGithub(){
   if(String.IsNullOrWhiteSpace(githubUser.Text)||String.IsNullOrWhiteSpace(githubToken.Text))return "Коммит сохранён локально. Укажите пользователя и токен GitHub.";
   var repo=githubRepo.Text.Trim();if(!Regex.IsMatch(repo,@"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))return "Коммит сохранён локально. Укажите репозиторий в формате владелец/имя.";
-  var branch=await RunGitAsync("symbolic-ref --quiet --short HEAD");if(branch.Item1!=0)return "Для отправки нужна текущая ветка Git.";
-  Stage(2,"Отправка на GitHub…");var result=await RunGitAsync("push "+Quote("https://github.com/"+repo+".git")+" "+Quote("HEAD:refs/heads/"+branch.Item2),true);
-  if(result.Item1!=0){status.Text="Коммит сохранён, отправка на GitHub не выполнена";return GithubPushFailure(result.Item2);}
-  CompletedOperation("Изменения отправлены на GitHub");Stage(3,"Выгрузка, Git и GitHub завершены");return null;
+  var branch=await RunGitSyncAsync("symbolic-ref --quiet --short HEAD",false);if(branch.Item1!=0)return "Для отправки нужна текущая ветка Git.";
+  string error=await GitLocalFirstSync.PushAsync(RunGitSyncAsync,"https://github.com/"+repo+".git",branch.Item2,()=>batchStopRequested,text=>Stage(2,text),RecordEvent,CompletedOperation,details=>GithubPushFailure(Redact(details)));
+  if(error!=null){status.Text="Коммит сохранён, отправка на GitHub не выполнена";return Redact(error);}
+  Stage(3,"Выгрузка, Git и GitHub завершены");return null;
  }
  static string GithubPushFailure(string details){
   if(details.IndexOf("GH001",StringComparison.OrdinalIgnoreCase)>=0||details.IndexOf("exceeds GitHub's file size limit",StringComparison.OrdinalIgnoreCase)>=0){
@@ -485,16 +489,46 @@ internal sealed class MainForm : Form {
     "\r\n\r\nФильтр размера применяется к файлам текущей выгрузки, но не очищает старые коммиты. Удаление файла новым коммитом не удалит его из истории.\r\n\r\nНужно отдельно убрать крупные файлы из неотправленной истории либо подготовить новый репозиторий с отфильтрованными файлами. Программа не переписывает историю автоматически.\r\n\r\nОтвет Git (с ограничением объёма) сохранён на вкладке «Журнал» и в exporter-events.log.";
   }
   if(details.IndexOf("non-fast-forward",StringComparison.OrdinalIgnoreCase)>=0||details.IndexOf("fetch first",StringComparison.OrdinalIgnoreCase)>=0)
-   return "Коммит сохранён локально. GitHub отклонил отправку: на сервере есть другая история или новые коммиты. Сначала нужно согласовать локальную и удалённую ветки.\r\nОтвет — в журнале.";
+   return "Коммит сохранён локально. GitHub отклонил отправку из-за расхождения историй. Проверьте пояснение этапа согласования и отсутствие параллельных отправок в эту ветку.\r\nОтвет — в журнале.";
   return "Коммит сохранён локально. Ошибка отправки на GitHub:\r\n"+(details.Length>1500?details.Substring(0,1500)+"\r\n… подробности находятся в журнале.":details);
  }
- async Task<Tuple<int,string>> RunGitAsync(string args,bool auth=false){
+ Task<Tuple<int,string>> RunGitAsync(string args,bool auth=false){return RunGitCoreAsync(args,auth,false);}
+ Task<Tuple<int,string>> RunGitSyncAsync(string args,bool auth){return RunGitCoreAsync(args,auth,GitLocalFirstSync.IsMachineQuery(args)||GitLocalFirstSync.IsPorcelainPush(args)||GitLocalFirstSync.IsIndexQuery(args));}
+ async Task<Tuple<int,string>> RunGitCoreAsync(string args,bool auth,bool machine){
   if(batchStopRequested)return Tuple.Create(-1,"Пакет остановлен пользователем.");try{using(var p=new Process{StartInfo=new ProcessStartInfo{FileName=gitPath.Text.Trim(),Arguments="-c core.quotepath=false -c http.sslVerify=true -C "+Quote(output.Text.Trim())+" "+args,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8}}){
    ExecutionSafety.CleanGitEnvironment(p.StartInfo);
-   if(auth){var rewrites=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" config --get-regexp "+Quote(@"^url\..*\.insteadOf$"));if(rewrites.Item1==0&&!String.IsNullOrWhiteSpace(rewrites.Item2))return Tuple.Create(-1,"В настройках Git есть url.insteadOf. Отправка с токеном остановлена: подмена адреса репозитория недопустима.");if(rewrites.Item1!=0&&rewrites.Item1!=1)return Tuple.Create(-1,"Не удалось проверить подмену адресов Git.");p.StartInfo.EnvironmentVariables["GIT_CONFIG_COUNT"]="4";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_3"]="http.https://github.com/.extraHeader";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_3"]="Authorization: Basic "+Convert.ToBase64String(Encoding.UTF8.GetBytes(githubUser.Text+":"+githubToken.Text));p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_0"]="http.https://github.com/.extraHeader";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_0"]="";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_1"]="http.followRedirects";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_1"]="false";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_2"]="credential.helper";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_2"]="";}
+   p.StartInfo.EnvironmentVariables["GIT_NO_REPLACE_OBJECTS"]="1";
+   if(auth){
+    var rewrites=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" config --get-regexp "+Quote(@"^url\..*\.(insteadOf|pushInsteadOf)$"));
+    if(rewrites.Item1==0&&!String.IsNullOrWhiteSpace(rewrites.Item2))return Tuple.Create(-1,"В настройках Git есть url.insteadOf / url.pushInsteadOf. Отправка с токеном остановлена: подмена адреса репозитория недопустима.");
+    if(rewrites.Item1!=0&&rewrites.Item1!=1)return Tuple.Create(-1,"Не удалось проверить подмену адресов Git.");
+    var address=Regex.Match(args,@"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git(?=""|\s|$)");
+    if(address.Success){var named=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" config --get-regexp "+Quote(@"^remote\."+Regex.Escape(address.Value)+@"\.(url|pushurl|mirror)$"));if(named.Item1==0&&!String.IsNullOrWhiteSpace(named.Item2))return Tuple.Create(-1,"В настройках Git есть remote с именем полного URL GitHub. Он может перенаправить отправку; переименуйте такой remote вручную.");if(named.Item1!=0&&named.Item1!=1)return Tuple.Create(-1,"Не удалось проверить именованный remote для адреса GitHub.");}
+    p.StartInfo.EnvironmentVariables["GIT_CONFIG_COUNT"]="4";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_3"]="http.https://github.com/.extraHeader";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_3"]="Authorization: Basic "+Convert.ToBase64String(Encoding.UTF8.GetBytes(githubUser.Text+":"+githubToken.Text));p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_0"]="http.https://github.com/.extraHeader";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_0"]="";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_1"]="http.followRedirects";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_1"]="false";p.StartInfo.EnvironmentVariables["GIT_CONFIG_KEY_2"]="credential.helper";p.StartInfo.EnvironmentVariables["GIT_CONFIG_VALUE_2"]="";
+   }
    string rawPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"git-details.log");string[] secrets={dbPassword.Text,repoPassword.Text,githubToken.Text,Convert.ToBase64String(Encoding.UTF8.GetBytes(githubUser.Text+":"+githubToken.Text))};string rawError=null;try{GitLog.WriteRaw(rawPath,"\r\n=== "+DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+" — "+GitLog.Mask(activeBaseName,secrets)+" ===\r\n[Git] "+GitLog.Mask(args,secrets)+"\r\n");}catch(Exception ex){rawError=ex.Message;}
    using(var timeoutCancellation=new CancellationTokenSource()){
-   p.Start();activeGitProcess=p;bool compactCommit=args.StartsWith("commit ",StringComparison.Ordinal);var stdout=Task.Run(()=>GitLog.ReadAsync(p.StandardOutput,rawPath,"stdout",secrets,compactCommit));var stderr=Task.Run(()=>GitLog.ReadAsync(p.StandardError,rawPath,"stderr",secrets,false));var exit=Task.Run(()=>p.WaitForExit());bool timeout=await Task.WhenAny(exit,Task.Delay(TimeSpan.FromMinutes(auth?5:30),timeoutCancellation.Token))!=exit;Observe(stdout);Observe(stderr);Observe(exit);if(timeout){batchStopRequested=true;if(batchCancellation!=null)batchCancellation.Cancel();try{RuntimeSafety.KillTree(p);}catch{}return Tuple.Create(-1,"Истекло время выполнения Git. Проверьте процессы и репозиторий.");}timeoutCancellation.Cancel();await exit;var pipes=Task.WhenAll(stdout,stderr);if(await Task.WhenAny(pipes,Task.Delay(2000))!=pipes){Observe(pipes);return Tuple.Create(-1,"Git завершился, но его дочерние процессы не закрыли журнал. Проверьте процессы Git.");}await pipes;var outResult=await stdout;var errResult=await stderr;var text=Redact(outResult.Text+errResult.Text);string shown=Redact(GitLog.Summary(outResult,errResult,args.StartsWith("status --porcelain",StringComparison.Ordinal)));if(rawError!=null)shown+="\r\nПодробный журнал Git недоступен: "+Redact(rawError);if(p.ExitCode!=0&&String.IsNullOrWhiteSpace(text))text="Git завершился с кодом "+p.ExitCode+".\r\n"+shown;string entry="\r\n[Git] "+Redact(args)+"\r\n"+shown;logBox.Text=RuntimeSafety.Tail(logBox.Text+entry);try{RuntimeSafety.AppendEvent(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"exporter-events.log"),entry);}catch{}return Tuple.Create(batchStopRequested?-1:p.ExitCode,batchStopRequested?"Пакет остановлен пользователем.":(p.ExitCode==0?Redact(outResult.Text):text).Trim());}
+   // Cancellation may arrive while the asynchronous auth/config checks run.
+   // Do not start a mutating Git command after that request has been delivered.
+   if(batchStopRequested)return Tuple.Create(-1,"Пакет остановлен пользователем; новая команда Git не запускалась.");
+   p.Start();activeGitProcess=p;bool compactCommit=args.StartsWith("commit ",StringComparison.Ordinal);
+   var stdout=Task.Run(()=>GitLocalFirstSync.IsIndexQuery(args)?GitLog.ReadIndexFlagsAsync(p.StandardOutput,rawPath,"stdout",secrets):machine?GitLog.ReadMetadataAsync(p.StandardOutput,rawPath,"stdout",secrets,GitLocalFirstSync.IsPorcelainPush(args)):GitLog.ReadAsync(p.StandardOutput,rawPath,"stdout",secrets,compactCommit));
+   var stderr=Task.Run(()=>GitLog.ReadAsync(p.StandardError,rawPath,"stderr",secrets,false));var exit=Task.Run(()=>p.WaitForExit());
+   // Fetch may need to download a large existing history; it gets 30 minutes.
+   int timeoutMinutes=auth&&!args.StartsWith("fetch ",StringComparison.Ordinal)?5:30;
+   bool timeout=await Task.WhenAny(exit,Task.Delay(TimeSpan.FromMinutes(timeoutMinutes),timeoutCancellation.Token))!=exit;
+   Observe(stdout);Observe(stderr);Observe(exit);
+   if(timeout){batchStopRequested=true;if(batchCancellation!=null)batchCancellation.Cancel();try{RuntimeSafety.KillTree(p);}catch{}return Tuple.Create(-1,"Истекло время выполнения Git. Проверьте процессы и репозиторий.");}
+   timeoutCancellation.Cancel();await exit;var pipes=Task.WhenAll(stdout,stderr);
+   if(await Task.WhenAny(pipes,Task.Delay(2000))!=pipes){Observe(pipes);return Tuple.Create(-1,"Git завершился, но его дочерние процессы не закрыли журнал. Проверьте процессы Git.");}
+   await pipes;var outResult=await stdout;var errResult=await stderr;var text=Redact(outResult.Text+errResult.Text);
+   string shown=Redact(GitLog.Summary(outResult,errResult,args.StartsWith("status --porcelain",StringComparison.Ordinal)));
+   if(rawError!=null)shown+="\r\nПодробный журнал Git недоступен: "+Redact(rawError);
+   if(p.ExitCode!=0&&String.IsNullOrWhiteSpace(text))text="Git завершился с кодом "+p.ExitCode+".\r\n"+shown;
+   string entry="\r\n[Git] "+Redact(args)+"\r\n"+shown;logBox.Text=RuntimeSafety.Tail(logBox.Text+entry);
+   try{RuntimeSafety.AppendEvent(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"exporter-events.log"),entry);}catch{}
+   string returned=p.ExitCode==0?(machine?outResult.Metadata:Redact(outResult.Text)):(machine&&outResult.Metadata.Length>0?outResult.Metadata+Redact(errResult.Text):text);
+   return Tuple.Create(batchStopRequested?-1:p.ExitCode,batchStopRequested?"Пакет остановлен пользователем.":returned.Trim());}
   }}catch(Exception ex){return Tuple.Create(-1,Redact(ex.Message));}finally{activeGitProcess=null;}
  }
  void OpenGitDetails(){string path=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"git-details.log");try{if(!File.Exists(path)){MessageBox.Show(this,"Подробный журнал появится после первой операции Git.","Журнал Git",MessageBoxButtons.OK,MessageBoxIcon.Information);return;}Process.Start(new ProcessStartInfo{FileName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"notepad.exe"),Arguments=Quote(path),UseShellExecute=true});}catch(Exception ex){MessageBox.Show(this,"Не удалось открыть журнал: "+ex.Message,"Журнал Git",MessageBoxButtons.OK,MessageBoxIcon.Warning);}}

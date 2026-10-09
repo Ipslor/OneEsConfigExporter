@@ -12,11 +12,14 @@ if (-not (Test-Path -LiteralPath $csc)) { $csc = Join-Path $env:WINDIR 'Microsof
 $utility = Join-Path $artifactDir 'OneCConfigExporter.exe'
 $fake = Join-Path $artifactDir '1cv8.exe'
 $fakeGit = Join-Path $artifactDir 'FakeSlowGit.exe'
+$fakeSyncGit = Join-Path $artifactDir 'FakeSyncGit.exe'
 & $csc /nologo /target:exe "/out:$fake" (Join-Path $testDir 'FakeDesigner.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Не удалось собрать тестовую 1С.' }
 & $csc /nologo /target:exe /reference:System.Core.dll "/out:$fakeGit" (Join-Path $testDir 'FakeSlowGit.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Не удалось собрать тестовый Git.' }
-foreach ($testName in @('VerifyReview','VerifyMessages','VerifyRunUi','VerifyGitLog','VerifyGitExecution','VerifyFinalSafety','VerifyCancellation','VerifyStages','VerifyAutomation','VerifyGitRecovery')) {
+& $csc /nologo /target:exe /reference:System.Core.dll "/out:$fakeSyncGit" (Join-Path $testDir 'FakeSyncGit.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Не удалось собрать тестовый прокси Git.' }
+foreach ($testName in @('VerifyReview','VerifyMessages','VerifyRunUi','VerifyGitLog','VerifyGitExecution','VerifyFinalSafety','VerifyCancellation','VerifyStages','VerifyAutomation','VerifyGitRecovery','VerifyLocalFirstSync')) {
  $testExe = Join-Path $artifactDir ($testName + '.exe')
  & $csc /nologo /target:exe "/reference:$utility" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Net.Http.dll /reference:System.Security.dll /reference:System.Web.Extensions.dll /reference:System.Xml.dll "/out:$testExe" (Join-Path $testDir ($testName + '.cs'))
  if ($LASTEXITCODE -ne 0) { throw ('Не удалось собрать ' + $testName) }

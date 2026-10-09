@@ -20,7 +20,7 @@ namespace OneCConfigExporter {
   readonly TextBox query=new TextBox();
   readonly Font titleFont=new Font("Segoe UI",14,FontStyle.Bold),bodyFont=new Font("Segoe UI",10);
   public HelpForm(){
-   Text="Справка — Выгрузка конфигурации 1С v.2.5.1";Font=new Font("Segoe UI",9);StartPosition=FormStartPosition.CenterParent;Size=new Size(950,680);MinimumSize=new Size(740,460);ShowInTaskbar=false;
+   Text="Справка — Выгрузка конфигурации 1С v.2.5.2";Font=new Font("Segoe UI",9);StartPosition=FormStartPosition.CenterParent;Size=new Size(950,680);MinimumSize=new Size(740,460);ShowInTaskbar=false;
    var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Padding=new Padding(8)};root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));Controls.Add(root);
    var split=new SplitContainer{Dock=DockStyle.Fill,FixedPanel=FixedPanel.Panel1,SplitterWidth=6};root.Controls.Add(split,0,0);split.Size=new Size(900,560);split.SplitterDistance=250;split.Panel1MinSize=200;split.Panel2MinSize=300;
    var tabs=new TabControl{Dock=DockStyle.Fill};var index=new TabPage("Содержание");var search=new TabPage("Поиск");tabs.TabPages.AddRange(new[]{index,search});split.Panel1.Controls.Add(tabs);
