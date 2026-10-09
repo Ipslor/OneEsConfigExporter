@@ -1,0 +1,30 @@
+# Local settings and automation snapshots
+*.dat
+*.dat.lock
+*.result.json
+.onecexporter.lock
+
+# Logs and rotating backups
+*.log
+*.log.previous
+*.log.lock
+*.previous
+*.tmp
+
+# Build / test output
+/dist/
+/tests/artifacts/
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.zip
+
+# IDE and OS metadata
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini
