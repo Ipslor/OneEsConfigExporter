@@ -17,8 +17,8 @@ using System.Reflection;
 using System.Threading;
 using Timer=System.Windows.Forms.Timer;
 
-[assembly: AssemblyVersion("2.5.0.0")]
-[assembly: AssemblyFileVersion("2.5.0.0")]
+[assembly: AssemblyVersion("2.5.1.0")]
+[assembly: AssemblyFileVersion("2.5.1.0")]
 
 namespace OneCConfigExporter {
 internal static class Program {
@@ -61,7 +61,7 @@ internal sealed class MainForm : Form {
  string[] githubRepositoryCache=new string[0];int dateVersion;bool headless;int lastBatchFailures;Button scenarioButton=new Button{Text="Сохранить как сценарий",AutoSize=true};
 
  public MainForm() {
-  Text="Выгрузка конфигурации 1С v.2.5"; Font=new Font("Segoe UI",9); MinimumSize=new Size(900,680); Size=new Size(1060,780); StartPosition=FormStartPosition.CenterScreen;
+  Text="Выгрузка конфигурации 1С v.2.5.1"; Font=new Font("Segoe UI",9); MinimumSize=new Size(900,680); Size=new Size(1060,780); StartPosition=FormStartPosition.CenterScreen;
   var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(14),ColumnCount=1,RowCount=8};
   root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); root.RowStyles.Add(new RowStyle(SizeType.Percent,100)); root.RowStyles.Add(new RowStyle(SizeType.AutoSize)); Controls.Add(root);
   root.RowStyles.Clear();root.RowCount=3;root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -102,7 +102,7 @@ internal sealed class MainForm : Form {
   batchGrid.CellValueChanged+=(s,e)=>{if(e.RowIndex>=0&&e.ColumnIndex==0&&batchGrid.Rows[e.RowIndex].Tag is BatchBase){((BatchBase)batchGrid.Rows[e.RowIndex].Tag).Enabled=Convert.ToBoolean(batchGrid.Rows[e.RowIndex].Cells[0].Value);UpdateRunAvailability();}};
   batchGrid.CellBeginEdit+=(s,e)=>{if(batchRunning||initializing)e.Cancel=true;};
   batchGrid.CellDoubleClick+=(s,e)=>{if(e.RowIndex<0)return;string column=e.ColumnIndex>=0?batchGrid.Columns[e.ColumnIndex].Name:"";if(batchRunning||initializing||column=="Статус"||column=="Пояснение")ShowBatchDetails(batchGrid.Rows[e.RowIndex]);else EditBatchBase();};
-  batchGrid.CellToolTipTextNeeded+=(s,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0){var cell=batchGrid.Rows[e.RowIndex].Cells[e.ColumnIndex];string column=batchGrid.Columns[e.ColumnIndex].Name;e.ToolTipText=column=="Последнее изменение"?cell.ToolTipText:(column=="Статус"||column=="Пояснение"?BatchDetailsText(batchGrid.Rows[e.RowIndex]):Convert.ToString(cell.Value));}};
+  batchGrid.CellToolTipTextNeeded+=(s,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0){var cell=batchGrid.Rows[e.RowIndex].Cells[e.ColumnIndex];string column=batchGrid.Columns[e.ColumnIndex].Name;e.ToolTipText=column=="Последнее изменение"?cell.ToolTipText:(column=="Статус"||column=="Пояснение"?BatchTooltipText(batchGrid.Rows[e.RowIndex]):Convert.ToString(cell.Value));}};
   layout.Controls.Add(batchGrid,0,1);var buttons=new FlowLayoutPanel{AutoSize=true,Dock=DockStyle.Fill};
   foreach(var label in new[]{"Добавить","Редактировать","Удалить","Копировать"}){var button=new Button{Text=label,AutoSize=true};batchButtons.Add(button);buttons.Controls.Add(button);}
   batchButtons[0].Click+=(s,e)=>AddBatchBase();batchButtons[1].Click+=(s,e)=>EditBatchBase();batchButtons[2].Click+=(s,e)=>DeleteBatchBase();batchButtons[3].Click+=(s,e)=>CopyBatchBase();scenarioButton.Click+=(s,e)=>CreateAutomaticScenario();buttons.Controls.Add(scenarioButton);layout.Controls.Add(buttons,0,2);
@@ -200,8 +200,11 @@ internal sealed class MainForm : Form {
  string BatchDetailsText(DataGridViewRow row){
   var b=row==null?null:row.Tag as BatchBase;if(b==null)return "Запись базы больше недоступна.";var summary=SummaryFor(b);var text=new StringBuilder("База: "+b.Name+"\r\nСтатус: "+Convert.ToString(row.Cells["Статус"].Value)+"\r\n\r\nУже выполнено:\r\n");
   if(summary.Done.Count==0)text.AppendLine("Завершённых этапов пока нет.");else foreach(string done in summary.Done)text.AppendLine("✓ "+done);
-  text.Append("\r\nТекущий этап: ").AppendLine(summary.Current);string reason=Convert.ToString(row.Cells["Пояснение"].Value);if(!String.IsNullOrWhiteSpace(reason)&&reason!=summary.Current)text.Append("\r\nПояснение:\r\n").Append(reason);return text.ToString();
+  text.Append("\r\nТекущий этап: ").AppendLine(summary.Current);string reason=Convert.ToString(row.Cells["Пояснение"].Value);if(!String.IsNullOrWhiteSpace(reason)&&reason!=summary.Current)text.Append("\r\nПояснение:\r\n").Append(reason);var recovery=RecoveryFor(row);if(recovery.Text.Length>0)text.Append("\r\n\r\n").Append(recovery.Text);return text.ToString();
  }
+ GitRecovery RecoveryFor(DataGridViewRow row){var b=row==null?null:row.Tag as BatchBase;if(b==null||!b.Commit||Convert.ToString(row.Cells["Статус"].Value).IndexOf("Ошибка",StringComparison.OrdinalIgnoreCase)<0)return new GitRecovery();string reason=Convert.ToString(row.Cells["Пояснение"].Value);if(SummaryFor(b).Current.IndexOf("Git",StringComparison.OrdinalIgnoreCase)<0&&reason.IndexOf("Git",StringComparison.OrdinalIgnoreCase)<0)return new GitRecovery();return GitRecovery.Create(gitPath.Text,b.Output,reason);}
+ string BatchTooltipText(DataGridViewRow row){string text=BatchDetailsText(row);int help=text.IndexOf("\r\n\r\nКак продолжить (Windows PowerShell):",StringComparison.Ordinal);if(help>=0)text=text.Substring(0,help)+"\r\n\r\nДвойной щелчок — инструкция и кнопки копирования команд PowerShell.";return text.Length>1800?text.Substring(0,1700)+"\r\n[Полное пояснение — по двойному щелчку]":text;}
+ static void CopyText(IWin32Window owner,string text){if(String.IsNullOrEmpty(text))return;try{Clipboard.SetText(text);}catch(Exception ex){MessageBox.Show(owner,"Не удалось скопировать в буфер обмена. Выделите команду в пояснении и нажмите Ctrl+C.\r\n\r\n"+ex.Message,"Копирование",MessageBoxButtons.OK,MessageBoxIcon.Warning);}}
  static void CheckExportFiles(string folder){CheckExportFilesCore(folder,CancellationToken.None);}
  static void CheckExportFilesCore(string folder,CancellationToken cancellation){foreach(string name in new[]{"Configuration.xml","ConfigDumpInfo.xml"}){string path=Path.Combine(folder,name);if(!File.Exists(path))throw new IOException("После выгрузки не найден "+name+". Проверьте журнал 1С.");using(var stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))using(var reader=XmlReader.Create(stream,new XmlReaderSettings{DtdProcessing=DtdProcessing.Prohibit,XmlResolver=null,MaxCharactersInDocument=128*1024*1024})){if(reader.MoveToContent()!=XmlNodeType.Element)throw new InvalidDataException("Файл "+name+" не содержит XML-документа.");while(reader.Read()){cancellation.ThrowIfCancellationRequested();}}}}
  void ShowBatchDetails(DataGridViewRow row){
@@ -210,7 +213,14 @@ internal sealed class MainForm : Form {
   using(var dialog=new Form{Text="Результат обработки — "+b.Name,StartPosition=FormStartPosition.CenterParent,Size=new Size(820,430),MinimumSize=new Size(500,260),ShowInTaskbar=false,Font=Font}){
    var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(10),ColumnCount=1,RowCount=2};layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));dialog.Controls.Add(layout);
    var detailText=new TextBox{Text=text,Multiline=true,ReadOnly=true,WordWrap=true,ScrollBars=ScrollBars.Vertical,Dock=DockStyle.Fill,BackColor=SystemColors.Window};layout.Controls.Add(detailText,0,0);
-   var close=new Button{Text="Закрыть",AutoSize=true,Anchor=AnchorStyles.Right,DialogResult=DialogResult.Cancel};layout.Controls.Add(close,0,1);dialog.CancelButton=close;using(var refresh=new Timer{Interval=400}){refresh.Tick+=(s,e)=>{string updated=BatchDetailsText(row);if(updated==detailText.Text)return;int start=detailText.SelectionStart,length=detailText.SelectionLength;detailText.Text=updated;detailText.Select(Math.Min(start,updated.Length),Math.Min(length,Math.Max(0,updated.Length-start)));};refresh.Start();try{dialog.ShowDialog(this);}finally{refresh.Stop();}}
+   var actions=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoSize=true,WrapContents=true};layout.Controls.Add(actions,0,1);
+   var copyCheck=new Button{Text="Копировать проверку",AutoSize=true};copyCheck.Click+=(s,e)=>CopyText(dialog,RecoveryFor(row).CheckCommand);actions.Controls.Add(copyCheck);
+   var copyUnstage=new Button{Text="Копировать снятие с индекса",AutoSize=true};copyUnstage.Click+=(s,e)=>CopyText(dialog,RecoveryFor(row).UnstageCommand);actions.Controls.Add(copyUnstage);
+   var copyCommit=new Button{Text="Копировать команду коммита",AutoSize=true};copyCommit.Click+=(s,e)=>CopyText(dialog,RecoveryFor(row).CommitCommand);actions.Controls.Add(copyCommit);
+   var copyDetails=new Button{Text="Копировать пояснение",AutoSize=true};copyDetails.Click+=(s,e)=>CopyText(dialog,detailText.Text);actions.Controls.Add(copyDetails);
+   var close=new Button{Text="Закрыть",AutoSize=true,DialogResult=DialogResult.Cancel};actions.Controls.Add(close);dialog.CancelButton=close;dialog.ActiveControl=close;
+   Action updateButtons=()=>{var recovery=RecoveryFor(row);copyCheck.Visible=recovery.CheckCommand.Length>0;copyUnstage.Visible=recovery.UnstageCommand.Length>0;copyCommit.Visible=recovery.CommitCommand.Length>0;};updateButtons();
+   using(var refresh=new Timer{Interval=400}){refresh.Tick+=(s,e)=>{updateButtons();string updated=BatchDetailsText(row);if(updated==detailText.Text)return;int start=detailText.SelectionStart,length=detailText.SelectionLength;detailText.Text=updated;detailText.Select(Math.Min(start,updated.Length),Math.Min(length,Math.Max(0,updated.Length-start)));};refresh.Start();try{dialog.ShowDialog(this);}finally{refresh.Stop();}}
   }
  }
  void OpenHelp(){if(helpWindow==null||helpWindow.IsDisposed){helpWindow=new HelpForm();helpWindow.Show(this);}else{if(helpWindow.WindowState==FormWindowState.Minimized)helpWindow.WindowState=FormWindowState.Normal;helpWindow.BringToFront();helpWindow.Activate();}}
@@ -241,7 +251,7 @@ internal sealed class MainForm : Form {
    using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token))
    using(var client=new HttpClient(new HttpClientHandler{AllowAutoRedirect=false}){Timeout=TimeSpan.FromSeconds(10)}){
     deadline.CancelAfter(TimeSpan.FromSeconds(10));
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.1");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
     {
      var info=new JavaScriptSerializer().DeserializeObject(await GithubResponse(client,"https://api.github.com/user",deadline.Token)) as Dictionary<string,object>;
      if(info==null||!info.ContainsKey("login")||!String.Equals(Convert.ToString(info["login"]),user,StringComparison.OrdinalIgnoreCase))throw new Exception("Токен принадлежит другому пользователю GitHub.");
@@ -277,7 +287,7 @@ internal sealed class MainForm : Form {
   ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
   using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token))
   using(var client=new HttpClient(new HttpClientHandler{AllowAutoRedirect=false}){Timeout=TimeSpan.FromSeconds(15)}){
-   deadline.CancelAfter(TimeSpan.FromSeconds(60));client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+   deadline.CancelAfter(TimeSpan.FromSeconds(60));client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCConfigExporter/2.5.1");client.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
    var names=new List<string>();for(int page=1;page<=100;page++){
     deadline.Token.ThrowIfCancellationRequested();if(IsDisposed||version!=connectionVersion)throw new OperationCanceledException("Параметры подключения изменились.");
     var rows=new JavaScriptSerializer().DeserializeObject(await GithubResponse(client,"https://api.github.com/user/repos?per_page=100&page="+page,deadline.Token)) as object[];
@@ -366,8 +376,9 @@ internal sealed class MainForm : Form {
  async Task<string> GitPreflight(){
   var directory=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" rev-parse --absolute-git-dir");if(directory.Item1!=0)return directory.Item2;
   foreach(string name in new[]{"MERGE_HEAD","CHERRY_PICK_HEAD","REVERT_HEAD","rebase-merge","rebase-apply","index.lock"}){string path=Path.Combine(directory.Item2,name);if(File.Exists(path)||Directory.Exists(path))return "Git занят или находится в незавершённой операции ("+name+"). Завершите её вручную.";}
+  var conflicts=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" diff --name-only --diff-filter=U");if(conflicts.Item1!=0)return conflicts.Item2;if(!String.IsNullOrWhiteSpace(conflicts.Item2))return "В репозитории есть неразрешённые конфликты.";
   var staged=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" diff --cached --name-only -- . "+GitExclusions());if(staged.Item1!=0)return staged.Item2;if(!String.IsNullOrWhiteSpace(staged.Item2))return "В каталоге уже есть подготовленные к коммиту изменения. Сохраните или уберите их из индекса вручную перед выгрузкой.";
-  var conflicts=await GitDiagnosticCommand(gitPath.Text,"-C "+Quote(output.Text)+" diff --name-only --diff-filter=U");if(conflicts.Item1!=0)return conflicts.Item2;if(!String.IsNullOrWhiteSpace(conflicts.Item2))return "В репозитории есть неразрешённые конфликты.";return null;
+  return null;
  }
  static async Task<Tuple<bool,bool,string>> DiagnoseGitDirectory(string exe,string folder){
   var version=await GitDiagnosticCommand(exe,"--version");

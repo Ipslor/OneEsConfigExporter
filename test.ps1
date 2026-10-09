@@ -16,7 +16,7 @@ $fakeGit = Join-Path $artifactDir 'FakeSlowGit.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Не удалось собрать тестовую 1С.' }
 & $csc /nologo /target:exe /reference:System.Core.dll "/out:$fakeGit" (Join-Path $testDir 'FakeSlowGit.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Не удалось собрать тестовый Git.' }
-foreach ($testName in @('VerifyReview','VerifyMessages','VerifyRunUi','VerifyGitLog','VerifyGitExecution','VerifyFinalSafety','VerifyCancellation','VerifyStages','VerifyAutomation')) {
+foreach ($testName in @('VerifyReview','VerifyMessages','VerifyRunUi','VerifyGitLog','VerifyGitExecution','VerifyFinalSafety','VerifyCancellation','VerifyStages','VerifyAutomation','VerifyGitRecovery')) {
  $testExe = Join-Path $artifactDir ($testName + '.exe')
  & $csc /nologo /target:exe "/reference:$utility" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Net.Http.dll /reference:System.Security.dll /reference:System.Web.Extensions.dll /reference:System.Xml.dll "/out:$testExe" (Join-Path $testDir ($testName + '.cs'))
  if ($LASTEXITCODE -ne 0) { throw ('Не удалось собрать ' + $testName) }

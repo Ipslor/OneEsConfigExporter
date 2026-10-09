@@ -1,13 +1,13 @@
 # OneEsConfigExporter
 
 [![Windows CI](https://github.com/Ipslor/OneEsConfigExporter/actions/workflows/windows-ci.yml/badge.svg)](https://github.com/Ipslor/OneEsConfigExporter/actions/workflows/windows-ci.yml)
-![Version](https://img.shields.io/badge/version-2.5-blue)
+![Version](https://img.shields.io/badge/version-2.5.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Runtime](https://img.shields.io/badge/.NET_Framework-4.8-512BD4)
 
 Portable-утилита для Windows: выгрузка конфигураций **1С:Предприятие 8** в файлы, локальные Git-коммиты и отправка на GitHub. Приложение написано на C# / WinForms и не требует установки.
 
-Очередь обрабатывает отмеченные базы последовательно — от одной конфигурации до нескольких. Версия приложения: **v.2.5**.
+Очередь обрабатывает отмеченные базы последовательно — от одной конфигурации до нескольких. Версия приложения: **v.2.5.1**.
 
 ## Скачать
 
@@ -100,9 +100,9 @@ Set-Location OneEsConfigExporter
 .\test.ps1 -GitPath "C:\Program Files\Git\cmd\git.exe"
 ```
 
-Набор из девяти проверок использует фиктивную 1С, тестовый медленный Git и отдельные локальные репозитории. Реальные базы и отправка на GitHub не используются. Для DPAPI нужен загруженный профиль текущего пользователя Windows. Артефакты остаются в `tests\artifacts\` и не входят в Git.
+Набор из десяти проверок использует фиктивную 1С, тестовый медленный Git и отдельные локальные репозитории. В том числе проверяются скопированные PowerShell-команды снятия с индекса и коммита, сохранность рабочих файлов и обработка путей со специальными символами. Реальные базы и отправка на GitHub не используются. Для DPAPI нужен загруженный профиль текущего пользователя Windows. Артефакты остаются в `tests\artifacts\` и не входят в Git.
 
-GitHub Actions выполняет сборку и этот набор на Windows. Локальные тесты v.2.5 пройдены; реальная платформа и все варианты серверов/лицензирования тестами не эмулируются.
+GitHub Actions выполняет сборку и этот набор на Windows. Реальная платформа и все варианты серверов/лицензирования тестами не эмулируются.
 
 ## Безопасность и ограничения
 
